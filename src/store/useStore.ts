@@ -33,8 +33,8 @@ export interface StoreState {
   toggleComplete(instanceId: string, completedBy?: string): void;
   /** 只修改完成人，不改变完成状态 */
   setCompleter(instanceId: string, completedBy: string): void;
-  /** 单次改期（仅未完成实例；非循环任务同步 startDate） */
-  updateInstanceDate(instanceId: string, newDueDate: string): void;
+  /** 单次改期（仅未完成实例；非循环任务同步 startDate 与 dueTime） */
+  updateInstanceDate(instanceId: string, newDueDate: string, newDueTime?: string): void;
   /** 删除单次实例（非循环任务的唯一实例由 UI 阻止） */
   deleteInstance(instanceId: string): void;
 
@@ -97,6 +97,7 @@ export const useStore = create<StoreState>()(
             recurrence: input.recurrence,
             assigneeIds: input.assigneeIds,
             startDate: input.startDate,
+            dueTime: input.dueTime,
             createdAt: new Date().toISOString(),
           };
           const { instances: gen, generatedThrough } = planInstancesForChore(chore, new Set());
@@ -119,6 +120,7 @@ export const useStore = create<StoreState>()(
             recurrence: patch.recurrence,
             assigneeIds: patch.assigneeIds ?? chore.assigneeIds,
             startDate: patch.startDate ?? chore.startDate,
+            dueTime: patch.dueTime,
           };
 
           // 是否触及循环本身？
@@ -205,23 +207,37 @@ export const useStore = create<StoreState>()(
           ),
         })),
 
-      updateInstanceDate: (instanceId, newDueDate) =>
+      updateInstanceDate: (instanceId, newDueDate, newDueTime) =>
         set((s) => {
           const inst = s.instances.find((i) => i.id === instanceId);
-          if (!inst || inst.completed || inst.dueDate === newDueDate) return s;
+          if (!inst || inst.completed) return s;
           const chore = s.chores.find((c) => c.id === inst.choreId);
-          const next = s.instances.map((i) =>
-            i.id === instanceId ? { ...i, dueDate: newDueDate } : i,
-          );
-          // 非循环任务：单次改期等同于改整个任务的生效日
+
+          // 非循环任务：时间是整任务属性，instance 恒继承（避免双源）
           if (chore && !chore.isRecurring) {
+            if (inst.dueDate === newDueDate && newDueTime === chore.dueTime) return s;
+            const next = s.instances.map((i) =>
+              i.id === instanceId ? { ...i, dueDate: newDueDate, dueTime: undefined } : i,
+            );
             return {
               instances: next,
               chores: s.chores.map((c) =>
-                c.id === chore.id ? { ...c, startDate: newDueDate, generatedThrough: newDueDate } : c,
+                c.id === chore.id
+                  ? { ...c, startDate: newDueDate, dueTime: newDueTime, generatedThrough: newDueDate }
+                  : c,
               ),
             };
           }
+
+          // 循环任务：单次覆盖；与模板一致或未提供时清空覆盖（回落继承模板）
+          const tpl = chore?.dueTime;
+          const override = newDueTime === undefined || newDueTime === tpl ? undefined : newDueTime;
+          const effectiveNew = override ?? tpl;
+          const effectiveOld = inst.dueTime ?? tpl;
+          if (inst.dueDate === newDueDate && effectiveNew === effectiveOld) return s;
+          const next = s.instances.map((i) =>
+            i.id === instanceId ? { ...i, dueDate: newDueDate, dueTime: override } : i,
+          );
           return { instances: next };
         }),
 

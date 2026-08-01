@@ -15,7 +15,7 @@ import {
 import dayjs from 'dayjs';
 import { useStore } from '../store/useStore';
 import { describeRule } from '../lib/recurrence';
-import { todayKey } from '../lib/dates';
+import { isOverdue as isInstanceOverdue, formatDue } from '../lib/due';
 import AvatarChip from './AvatarChip';
 
 const { Text } = Typography;
@@ -50,8 +50,8 @@ export default function ChoreDetailDrawer({
   const chore = inst ? chores.find((c) => c.id === inst.choreId) ?? null : null;
   const assignees = chore ? members.filter((m) => chore.assigneeIds.includes(m.id)) : [];
 
-  const today = todayKey();
-  const isOverdue = inst && !inst.completed && inst.dueDate < today;
+  const dueTime = inst ? (inst.dueTime ?? chore?.dueTime) : undefined;
+  const overdue = !!(inst && chore && isInstanceOverdue(inst, chore));
 
   if (!inst || !chore) return null;
 
@@ -78,8 +78,8 @@ export default function ChoreDetailDrawer({
           </Descriptions.Item>
         )}
         <Descriptions.Item label="截止日期">
-          {inst.dueDate}
-          {isOverdue && <Tag color="red" style={{ marginInlineStart: 8 }}>已逾期</Tag>}
+          {formatDue(inst, chore)}
+          {overdue && <Tag color="red" style={{ marginInlineStart: 8 }}>已逾期</Tag>}
           {inst.completed && <Tag color="green" style={{ marginInlineStart: 8 }}>已完成</Tag>}
         </Descriptions.Item>
         <Descriptions.Item label="负责人">
@@ -123,14 +123,42 @@ export default function ChoreDetailDrawer({
           <Space>
             <Text type="secondary">改期</Text>
             <DatePicker
-              value={dayjs(inst.dueDate)}
+              showTime={dueTime ? { format: 'HH:mm' } : undefined}
+              format={dueTime ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD'}
+              value={dayjs(dueTime ? `${inst.dueDate} ${dueTime}` : inst.dueDate)}
               onChange={(d) => {
                 if (d) {
-                  updateInstanceDate(inst.id, d.format('YYYY-MM-DD'));
+                  updateInstanceDate(
+                    inst.id,
+                    d.format('YYYY-MM-DD'),
+                    dueTime ? d.format('HH:mm') : undefined,
+                  );
                   message.success('已改期');
                 }
               }}
             />
+            {!dueTime && (
+              <Button
+                size="small"
+                onClick={() => {
+                  updateInstanceDate(inst.id, inst.dueDate, '09:00');
+                  message.success('已设置时间');
+                }}
+              >
+                设置时间
+              </Button>
+            )}
+            {dueTime && !chore.isRecurring && (
+              <Button
+                size="small"
+                onClick={() => {
+                  updateInstanceDate(inst.id, inst.dueDate, undefined);
+                  message.success('已改为全天');
+                }}
+              >
+                改为全天
+              </Button>
+            )}
           </Space>
         )}
 

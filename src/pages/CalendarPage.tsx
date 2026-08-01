@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import Calendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/react/daygrid';
+import timeGridPlugin from '@fullcalendar/react/timegrid';
 import interactionPlugin from '@fullcalendar/react/interaction';
 import classicTheme from '@fullcalendar/react/themes/classic';
 import '@fullcalendar/react/skeleton.css';
@@ -45,11 +46,12 @@ export default function CalendarPage() {
     return instances.map((i) => {
       const chore = choreById.get(i.choreId);
       const firstAssignee = chore ? memberById.get(chore.assigneeIds[0] ?? '') : undefined;
+      const t = i.dueTime ?? chore?.dueTime;
       return {
         id: i.id,
         title: chore?.title ?? '未知任务',
-        start: i.dueDate,
-        allDay: true,
+        start: t ? `${i.dueDate}T${t}:00` : i.dueDate,
+        allDay: !t,
         backgroundColor: i.completed ? undefined : firstAssignee?.avatarColor,
         borderColor: i.completed ? undefined : firstAssignee?.avatarColor,
         classNames: i.completed ? ['fc-event-completed'] : [],
@@ -73,14 +75,14 @@ export default function CalendarPage() {
   return (
     <div style={{ height }}>
       <Calendar
-        plugins={[dayGridPlugin, interactionPlugin, classicTheme]}
+        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, classicTheme]}
         initialView="dayGridMonth"
         locale="zh-cn"
         locales={[zhCn]}
         headerToolbar={{
           left: 'prev,next today',
           center: 'title',
-          right: 'dayGridDay,dayGridWeek,dayGridMonth',
+          right: 'timeGridDay,timeGridWeek,dayGridMonth',
         }}
         events={events}
         dateClick={handleDateClick}

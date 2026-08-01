@@ -26,6 +26,7 @@ export function buildSeedChores(members: Member[]): ChoreInput[] {
       recurrence: { freq: 'weekly', interval: 1, weekdays: [0] },
       assigneeIds: [byName['张三']],
       startDate: today,
+      dueTime: '09:30',
     },
     {
       title: '整理文件',

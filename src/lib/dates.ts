@@ -12,6 +12,16 @@ export const toDateKey = (d: Date): string => {
   return `${y}-${m}-${day}`;
 };
 
+/** Date -> 本地 'HH:mm' */
+export const toTimeKey = (d: Date): string =>
+  `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+/** Date -> 本地 'YYYY-MM-DD HH:mm'（字典序即时间序） */
+export const toDateTimeKey = (d: Date): string => `${toDateKey(d)} ${toTimeKey(d)}`;
+
+/** 当前本地 'YYYY-MM-DD HH:mm' */
+export const nowDateTimeKey = (): string => toDateTimeKey(new Date());
+
 /** 'YYYY-MM-DD' -> 本地正午 Date（供日历等本地场景使用） */
 export const dateToLocalNoon = (key: string): Date => {
   const [y, m, d] = key.split('-').map(Number);

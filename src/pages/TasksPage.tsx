@@ -5,6 +5,7 @@ import { CheckOutlined, UndoOutlined } from '@ant-design/icons';
 import { useStore } from '../store/useStore';
 import { describeRule } from '../lib/recurrence';
 import { todayKey, addDaysKey } from '../lib/dates';
+import { isOverdue, effectiveDueKey, formatDue } from '../lib/due';
 import type { ChoreInstance, Chore } from '../types';
 import AvatarChip from '../components/AvatarChip';
 import ChoreDetailDrawer from '../components/ChoreDetailDrawer';
@@ -49,8 +50,8 @@ export default function TasksPage() {
       .filter((r): r is Row => !!r.chore)
       .filter((r) => {
         if (status === 'done') return r.inst.completed;
-        if (status === 'todo') return !r.inst.completed && r.inst.dueDate >= today;
-        if (status === 'overdue') return !r.inst.completed && r.inst.dueDate < today;
+        if (status === 'todo') return !r.inst.completed && !isOverdue(r.inst, r.chore);
+        if (status === 'overdue') return !r.inst.completed && isOverdue(r.inst, r.chore);
         return true;
       })
       .filter((r) => {
@@ -64,9 +65,9 @@ export default function TasksPage() {
       })
       .sort((a, b) => {
         if (a.inst.completed !== b.inst.completed) return a.inst.completed ? 1 : -1;
-        return a.inst.dueDate.localeCompare(b.inst.dueDate);
+        return effectiveDueKey(a.inst, a.chore).localeCompare(effectiveDueKey(b.inst, b.chore));
       });
-  }, [instances, choreById, status, assigneeId, range, today]);
+  }, [instances, choreById, status, assigneeId, range]);
 
   const columns: ColumnsType<Row> = [
     {
@@ -91,8 +92,8 @@ export default function TasksPage() {
     },
     {
       title: '截止日期',
-      dataIndex: ['inst', 'dueDate'],
-      sorter: (a, b) => a.inst.dueDate.localeCompare(b.inst.dueDate),
+      render: (_, r) => formatDue(r.inst, r.chore),
+      sorter: (a, b) => effectiveDueKey(a.inst, a.chore).localeCompare(effectiveDueKey(b.inst, b.chore)),
     },
     {
       title: '重复',
@@ -107,7 +108,7 @@ export default function TasksPage() {
       title: '状态',
       render: (_, r) => {
         if (r.inst.completed) return <Tag color="green">已完成</Tag>;
-        if (r.inst.dueDate < today) return <Tag color="red">已逾期</Tag>;
+        if (isOverdue(r.inst, r.chore)) return <Tag color="red">已逾期</Tag>;
         return <Tag color="blue">待办</Tag>;
       },
     },

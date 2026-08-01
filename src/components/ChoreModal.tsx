@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Modal, Form, Input, DatePicker, Typography, message } from 'antd';
+import { Modal, Form, Input, DatePicker, TimePicker, Switch, Typography, message } from 'antd';
 import dayjs from 'dayjs';
 import type { Chore, ChoreInput, RecurrenceRule } from '../types';
 import { useStore } from '../store/useStore';
@@ -24,6 +24,8 @@ interface FormValues {
   startDate: dayjs.Dayjs;
   endDate?: dayjs.Dayjs;
   assigneeIds: string[];
+  hasDueTime?: boolean;
+  dueTime?: dayjs.Dayjs;
 }
 
 /** 杂务新增/编辑弹窗 */
@@ -47,12 +49,16 @@ export default function ChoreModal({ open, onClose, editing, defaultDate }: Chor
   const today = todayKey();
   const isRecurring = recurrence != null;
 
+  const hasDueTime = Form.useWatch('hasDueTime', form) ?? !!editing?.dueTime;
+
   const initialValues: Partial<FormValues> = {
     title: editing?.title ?? '',
     description: editing?.description ?? '',
     startDate: dayjs(editing?.startDate ?? defaultDate ?? today),
     endDate: editing?.recurrence?.endDate ? dayjs(editing.recurrence.endDate) : undefined,
     assigneeIds: editing?.assigneeIds ?? [],
+    hasDueTime: !!editing?.dueTime,
+    dueTime: editing?.dueTime ? dayjs(editing.dueTime, 'HH:mm') : undefined,
   };
 
   const handleOk = async () => {
@@ -72,6 +78,9 @@ export default function ChoreModal({ open, onClose, editing, defaultDate }: Chor
       recurrence.endDate = undefined;
     }
 
+    const dueTime =
+      values.hasDueTime && values.dueTime ? values.dueTime.format('HH:mm') : undefined;
+
     const input: ChoreInput = {
       title: values.title,
       description: values.description || undefined,
@@ -79,6 +88,7 @@ export default function ChoreModal({ open, onClose, editing, defaultDate }: Chor
       isRecurring,
       recurrence: isRecurring ? { ...recurrence! } : undefined,
       assigneeIds: values.assigneeIds ?? [],
+      dueTime,
     };
 
     if (editing) {
@@ -126,6 +136,20 @@ export default function ChoreModal({ open, onClose, editing, defaultDate }: Chor
         >
           <DatePicker style={{ width: '100%' }} />
         </Form.Item>
+
+        <Form.Item name="hasDueTime" label="具体时间" valuePropName="checked">
+          <Switch />
+        </Form.Item>
+
+        {hasDueTime && (
+          <Form.Item
+            name="dueTime"
+            label={isRecurring ? '每天重复时刻' : '截止时刻'}
+            rules={[{ required: true, message: '请选择具体时间' }]}
+          >
+            <TimePicker format="HH:mm" style={{ width: '100%' }} />
+          </Form.Item>
+        )}
 
         {isRecurring && (
           <Form.Item name="endDate" label="结束日期（可选）">

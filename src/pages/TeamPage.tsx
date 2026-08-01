@@ -16,7 +16,7 @@ import {
 import { PlusOutlined, EditOutlined, DeleteOutlined, UserOutlined } from '@ant-design/icons';
 import { useStore } from '../store/useStore';
 import { describeRule } from '../lib/recurrence';
-import { todayKey } from '../lib/dates';
+import { isOverdue, effectiveDueKey, formatDue } from '../lib/due';
 import type { Member, Chore, ChoreInstance } from '../types';
 import MemberModal from '../components/MemberModal';
 
@@ -33,7 +33,6 @@ export default function TeamPage() {
   const [editing, setEditing] = useState<Member | null>(null);
   const [viewing, setViewing] = useState<Member | null>(null);
 
-  const today = todayKey();
   const choreById = useMemo(() => new Map(chores.map((c) => [c.id, c])), [chores]);
 
   // 某成员承担的任务（实例 join 杂务）
@@ -47,7 +46,7 @@ export default function TeamPage() {
       )
       .sort((a, b) => {
         if (a.inst.completed !== b.inst.completed) return a.inst.completed ? 1 : -1;
-        return a.inst.dueDate.localeCompare(b.inst.dueDate);
+        return effectiveDueKey(a.inst, a.chore).localeCompare(effectiveDueKey(b.inst, b.chore));
       });
   }, [viewing, instances, choreById]);
 
@@ -146,7 +145,7 @@ export default function TeamPage() {
                     <Text delete={inst.completed}>{chore.title}</Text>
                     {inst.completed ? (
                       <Tag color="green">已完成</Tag>
-                    ) : inst.dueDate < today ? (
+                    ) : isOverdue(inst, chore) ? (
                       <Tag color="red">已逾期</Tag>
                     ) : (
                       <Tag color="blue">待办</Tag>
@@ -155,7 +154,7 @@ export default function TeamPage() {
                 }
                 description={
                   <Space wrap>
-                    <Text type="secondary">{inst.dueDate}</Text>
+                    <Text type="secondary">{formatDue(inst, chore)}</Text>
                     {chore.isRecurring && chore.recurrence && (
                       <Tag color="blue">{describeRule(chore.recurrence)}</Tag>
                     )}
