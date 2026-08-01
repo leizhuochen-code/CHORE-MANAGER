@@ -1,6 +1,6 @@
 /**
  * 示例数据 —— 首次打开应用时灌入，走真实的 store action 生成实例。
- * 刻意保持极简：1 个成员 + 1 个任务示例，其余由用户自行配置。
+ * 刻意保持极简：1 个成员 + 1 个单次任务示例，其余由用户自行配置。
  */
 import type { Member, ChoreInput } from '../types';
 import { todayKey } from './dates';
@@ -17,10 +17,9 @@ export function buildSeedChores(members: Member[]): ChoreInput[] {
 
   return [
     {
-      title: '每周例会',
-      description: '每周一上午团队例会',
-      isRecurring: true,
-      recurrence: { freq: 'weekly', interval: 1, weekdays: [0] },
+      title: '整理会议纪要',
+      description: '单次任务示例',
+      isRecurring: false,
       assigneeIds: [byName['张三']],
       startDate: today,
       startTime: '09:30',
