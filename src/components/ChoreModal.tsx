@@ -24,7 +24,6 @@ interface FormValues {
   startDate: dayjs.Dayjs;
   endDate?: dayjs.Dayjs;
   assigneeIds: string[];
-  hasDueTime?: boolean;
   dueTime?: dayjs.Dayjs;
 }
 
@@ -37,11 +36,14 @@ export default function ChoreModal({ open, onClose, editing, defaultDate }: Chor
 
   // 重复规则独立于 antd Form 管理（复合受控组件）
   const [recurrence, setRecurrence] = useState<RecurrenceRule | null>(null);
+  // 是否设置具体时间：独立 state 管理，避免依赖 Form 残留值导致新建被校验阻塞
+  const [hasTime, setHasTime] = useState(false);
 
   // 每次打开时重置
   useEffect(() => {
     if (open) {
       setRecurrence(editing?.isRecurring ? (editing.recurrence ?? null) : null);
+      setHasTime(!!editing?.dueTime);
       form.resetFields();
     }
   }, [open, editing, form]);
@@ -49,15 +51,12 @@ export default function ChoreModal({ open, onClose, editing, defaultDate }: Chor
   const today = todayKey();
   const isRecurring = recurrence != null;
 
-  const hasDueTime = Form.useWatch('hasDueTime', form) ?? !!editing?.dueTime;
-
   const initialValues: Partial<FormValues> = {
     title: editing?.title ?? '',
     description: editing?.description ?? '',
     startDate: dayjs(editing?.startDate ?? defaultDate ?? today),
     endDate: editing?.recurrence?.endDate ? dayjs(editing.recurrence.endDate) : undefined,
     assigneeIds: editing?.assigneeIds ?? [],
-    hasDueTime: !!editing?.dueTime,
     dueTime: editing?.dueTime ? dayjs(editing.dueTime, 'HH:mm') : undefined,
   };
 
@@ -78,8 +77,7 @@ export default function ChoreModal({ open, onClose, editing, defaultDate }: Chor
       recurrence.endDate = undefined;
     }
 
-    const dueTime =
-      values.hasDueTime && values.dueTime ? values.dueTime.format('HH:mm') : undefined;
+    const dueTime = hasTime && values.dueTime ? values.dueTime.format('HH:mm') : undefined;
 
     const input: ChoreInput = {
       title: values.title,
@@ -137,11 +135,11 @@ export default function ChoreModal({ open, onClose, editing, defaultDate }: Chor
           <DatePicker style={{ width: '100%' }} />
         </Form.Item>
 
-        <Form.Item name="hasDueTime" label="具体时间" valuePropName="checked">
-          <Switch />
+        <Form.Item label="具体时间">
+          <Switch checked={hasTime} onChange={setHasTime} />
         </Form.Item>
 
-        {hasDueTime && (
+        {hasTime && (
           <Form.Item
             name="dueTime"
             label={isRecurring ? '每天重复时刻' : '截止时刻'}

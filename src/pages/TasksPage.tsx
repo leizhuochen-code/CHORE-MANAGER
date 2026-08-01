@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Table, Tag, Space, Button, Select, DatePicker, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { CheckOutlined, UndoOutlined } from '@ant-design/icons';
+import { CheckOutlined, UndoOutlined, PlusOutlined } from '@ant-design/icons';
 import { useStore } from '../store/useStore';
 import { describeRule } from '../lib/recurrence';
 import { todayKey, addDaysKey } from '../lib/dates';
@@ -165,6 +165,16 @@ export default function TasksPage() {
             );
           }}
         />
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => {
+            setEditing(null);
+            setEditOpen(true);
+          }}
+        >
+          新建任务
+        </Button>
       </Space>
 
       <Table<Row>
