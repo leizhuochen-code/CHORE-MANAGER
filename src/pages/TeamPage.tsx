@@ -16,9 +16,10 @@ import {
 import { PlusOutlined, EditOutlined, DeleteOutlined, UserOutlined } from '@ant-design/icons';
 import { useStore } from '../store/useStore';
 import { describeRule } from '../lib/recurrence';
-import { isOverdue, effectiveDueKey, formatDue } from '../lib/due';
+import { status as taskStatus, startKey, formatWindow } from '../lib/due';
 import type { Member, Chore, ChoreInstance } from '../types';
 import MemberModal from '../components/MemberModal';
+import StatusTag from '../components/StatusTag';
 
 const { Text, Title } = Typography;
 
@@ -46,7 +47,7 @@ export default function TeamPage() {
       )
       .sort((a, b) => {
         if (a.inst.completed !== b.inst.completed) return a.inst.completed ? 1 : -1;
-        return effectiveDueKey(a.inst, a.chore).localeCompare(effectiveDueKey(b.inst, b.chore));
+        return startKey(a.inst, a.chore).localeCompare(startKey(b.inst, b.chore));
       });
   }, [viewing, instances, choreById]);
 
@@ -143,18 +144,12 @@ export default function TeamPage() {
                 title={
                   <Space>
                     <Text delete={inst.completed}>{chore.title}</Text>
-                    {inst.completed ? (
-                      <Tag color="green">已完成</Tag>
-                    ) : isOverdue(inst, chore) ? (
-                      <Tag color="red">已逾期</Tag>
-                    ) : (
-                      <Tag color="blue">待办</Tag>
-                    )}
+                    <StatusTag status={taskStatus(inst, chore)} />
                   </Space>
                 }
                 description={
                   <Space wrap>
-                    <Text type="secondary">{formatDue(inst, chore)}</Text>
+                    <Text type="secondary">{formatWindow(inst, chore)}</Text>
                     {chore.isRecurring && chore.recurrence && (
                       <Tag color="blue">{describeRule(chore.recurrence)}</Tag>
                     )}

@@ -15,8 +15,11 @@ import {
 import dayjs from 'dayjs';
 import { useStore } from '../store/useStore';
 import { describeRule } from '../lib/recurrence';
-import { isOverdue as isInstanceOverdue, formatDue } from '../lib/due';
+import { status as taskStatus, formatWindow, effectiveStartTime, effectiveDuration } from '../lib/due';
 import AvatarChip from './AvatarChip';
+import StatusTag from './StatusTag';
+import GuidedTimePicker from './GuidedTimePicker';
+import DurationPicker from './DurationPicker';
 
 const { Text } = Typography;
 
@@ -50,8 +53,9 @@ export default function ChoreDetailDrawer({
   const chore = inst ? chores.find((c) => c.id === inst.choreId) ?? null : null;
   const assignees = chore ? members.filter((m) => chore.assigneeIds.includes(m.id)) : [];
 
-  const dueTime = inst ? (inst.dueTime ?? chore?.dueTime) : undefined;
-  const overdue = !!(inst && chore && isInstanceOverdue(inst, chore));
+  const st = inst && chore ? taskStatus(inst, chore) : 'upcoming';
+  const startT = inst && chore ? effectiveStartTime(inst, chore) : '09:00';
+  const dur = inst && chore ? effectiveDuration(inst, chore) : 60;
 
   if (!inst || !chore) return null;
 
@@ -77,10 +81,11 @@ export default function ChoreDetailDrawer({
             <Tag color="blue">{describeRule(chore.recurrence)}</Tag>
           </Descriptions.Item>
         )}
-        <Descriptions.Item label="截止日期">
-          {formatDue(inst, chore)}
-          {overdue && <Tag color="red" style={{ marginInlineStart: 8 }}>已逾期</Tag>}
-          {inst.completed && <Tag color="green" style={{ marginInlineStart: 8 }}>已完成</Tag>}
+        <Descriptions.Item label="时间">
+          {formatWindow(inst, chore)}
+          <span style={{ marginInlineStart: 8 }}>
+            <StatusTag status={st} />
+          </span>
         </Descriptions.Item>
         <Descriptions.Item label="负责人">
           <Space wrap size={4}>
@@ -118,47 +123,43 @@ export default function ChoreDetailDrawer({
           )}
         </Space>
 
-        {/* 单次改期（仅未完成） */}
+        {/* 单次改期（仅未完成）：日期 + 起始时间 + 持续时间 */}
         {!inst.completed && (
-          <Space>
-            <Text type="secondary">改期</Text>
-            <DatePicker
-              showTime={dueTime ? { format: 'HH:mm' } : undefined}
-              format={dueTime ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD'}
-              value={dayjs(dueTime ? `${inst.dueDate} ${dueTime}` : inst.dueDate)}
-              onChange={(d) => {
-                if (d) {
-                  updateInstanceDate(
-                    inst.id,
-                    d.format('YYYY-MM-DD'),
-                    dueTime ? d.format('HH:mm') : undefined,
-                  );
-                  message.success('已改期');
-                }
-              }}
-            />
-            {!dueTime && (
-              <Button
-                size="small"
-                onClick={() => {
-                  updateInstanceDate(inst.id, inst.dueDate, '09:00');
-                  message.success('已设置时间');
+          <Space direction="vertical" size={8} style={{ width: '100%' }}>
+            <Space wrap>
+              <Text type="secondary">改期</Text>
+              <DatePicker
+                value={dayjs(inst.dueDate)}
+                onChange={(d) => {
+                  if (d) {
+                    updateInstanceDate(inst.id, d.format('YYYY-MM-DD'), startT, dur);
+                    message.success('已改期');
+                  }
                 }}
-              >
-                设置时间
-              </Button>
-            )}
-            {dueTime && !chore.isRecurring && (
-              <Button
-                size="small"
-                onClick={() => {
-                  updateInstanceDate(inst.id, inst.dueDate, undefined);
-                  message.success('已改为全天');
+              />
+            </Space>
+            <Space wrap>
+              <Text type="secondary">起始时间</Text>
+              <GuidedTimePicker
+                value={startT}
+                onChange={(t) => {
+                  if (t) {
+                    updateInstanceDate(inst.id, inst.dueDate, t, dur);
+                    message.success('已改起始时间');
+                  }
                 }}
-              >
-                改为全天
-              </Button>
-            )}
+              />
+            </Space>
+            <Space wrap>
+              <Text type="secondary">持续时间</Text>
+              <DurationPicker
+                value={dur}
+                onChange={(m) => {
+                  updateInstanceDate(inst.id, inst.dueDate, startT, m);
+                  message.success('已改持续时间');
+                }}
+              />
+            </Space>
           </Space>
         )}
 

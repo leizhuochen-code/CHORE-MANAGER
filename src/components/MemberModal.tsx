@@ -23,6 +23,11 @@ export default function MemberModal({ open, onClose, editing }: MemberModalProps
   const [form] = Form.useForm<FormValues>();
   const addMember = useStore((s) => s.addMember);
   const updateMember = useStore((s) => s.updateMember);
+  const members = useStore((s) => s.members);
+
+  // 新建时自动分配一个未被现有成员使用的颜色，保证不同成员颜色不同
+  const defaultColor =
+    AVATAR_COLORS.find((c) => !members.some((m) => m.avatarColor === c)) ?? AVATAR_COLORS[0];
 
   useEffect(() => {
     if (open) form.resetFields();
@@ -36,7 +41,7 @@ export default function MemberModal({ open, onClose, editing }: MemberModalProps
   const initialValues: Partial<FormValues> = {
     name: editing?.name ?? '',
     role: editing?.role ?? '',
-    avatarColor: editing?.avatarColor ?? AVATAR_COLORS[0],
+    avatarColor: editing?.avatarColor ?? defaultColor,
     avatarEmoji: editing?.avatarEmoji ?? AVATAR_EMOJIS[0],
   };
 

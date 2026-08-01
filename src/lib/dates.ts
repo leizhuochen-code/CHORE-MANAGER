@@ -22,6 +22,19 @@ export const toDateTimeKey = (d: Date): string => `${toDateKey(d)} ${toTimeKey(d
 /** 当前本地 'YYYY-MM-DD HH:mm' */
 export const nowDateTimeKey = (): string => toDateTimeKey(new Date());
 
+/** 'YYYY-MM-DD' + 'HH:mm' + 分钟 → 结束 'YYYY-MM-DD HH:mm'（处理跨天，如 23:00 + 90min → 次日 00:30） */
+export const addMinutesToDateTime = (
+  dateKey: string,
+  timeKey: string,
+  minutes: number,
+): string => {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const [hh, mm] = timeKey.split(':').map(Number);
+  const dt = new Date(y, m - 1, d, hh, mm);
+  dt.setMinutes(dt.getMinutes() + minutes);
+  return toDateTimeKey(dt);
+};
+
 /** 'YYYY-MM-DD' -> 本地正午 Date（供日历等本地场景使用） */
 export const dateToLocalNoon = (key: string): Date => {
   const [y, m, d] = key.split('-').map(Number);

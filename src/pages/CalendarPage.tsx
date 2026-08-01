@@ -10,7 +10,7 @@ import '@fullcalendar/react/themes/classic/palette.css';
 import zhCn from '@fullcalendar/react/locales/zh-cn';
 import type { DateClickInfo, DatesSetInfo, EventClickInfo } from '@fullcalendar/react';
 import { useStore } from '../store/useStore';
-import { normalizeDateKey } from '../lib/dates';
+import { normalizeDateKey, addMinutesToDateTime } from '../lib/dates';
 import type { Chore } from '../types';
 import ChoreModal from '../components/ChoreModal';
 import ChoreDetailDrawer from '../components/ChoreDetailDrawer';
@@ -46,12 +46,18 @@ export default function CalendarPage() {
     return instances.map((i) => {
       const chore = choreById.get(i.choreId);
       const firstAssignee = chore ? memberById.get(chore.assigneeIds[0] ?? '') : undefined;
-      const t = i.dueTime ?? chore?.dueTime;
+      // 时段块：起始 = 日期+起始时刻，结束 = 起始 + 持续分钟（可跨天）
+      const startTime = i.startTime ?? chore?.startTime ?? '09:00';
+      const duration = i.durationMinutes ?? chore?.durationMinutes ?? 60;
+      const start = `${i.dueDate}T${startTime}:00`;
+      const endKey = addMinutesToDateTime(i.dueDate, startTime, duration);
+      const end = `${endKey.slice(0, 10)}T${endKey.slice(11)}:00`;
       return {
         id: i.id,
         title: chore?.title ?? '未知任务',
-        start: t ? `${i.dueDate}T${t}:00` : i.dueDate,
-        allDay: !t,
+        start,
+        end,
+        allDay: false,
         backgroundColor: i.completed ? undefined : firstAssignee?.avatarColor,
         borderColor: i.completed ? undefined : firstAssignee?.avatarColor,
         classNames: i.completed ? ['fc-event-completed'] : [],
@@ -89,6 +95,7 @@ export default function CalendarPage() {
         eventClick={handleEventClick}
         datesSet={handleDatesSet}
         dayMaxEvents={3}
+        slotDuration="00:10:00"
         height="100%"
       />
 

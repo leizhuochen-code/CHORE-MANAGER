@@ -37,8 +37,9 @@ export interface Chore {
   isRecurring: boolean;
   recurrence?: RecurrenceRule;
   assigneeIds: string[];
-  startDate: string; // 生效日
-  dueTime?: string; // 模板时刻 'HH:mm'，实例缺省继承
+  startDate: string; // 开始日期
+  startTime: string; // 起始时刻 'HH:mm'，实例缺省继承
+  durationMinutes: number; // 持续时间（分钟），实例缺省继承
   createdAt: string; // ISO 时间
   /** 已物化实例覆盖到的最后日期（仅循环任务），自动扩展的依据 */
   generatedThrough?: string;
@@ -48,8 +49,11 @@ export interface Chore {
 export interface ChoreInstance {
   id: string;
   choreId: string;
-  dueDate: string; // YYYY-MM-DD
-  dueTime?: string; // 单次改期的时间覆盖 'HH:mm'；缺省继承 chore.dueTime
+  dueDate: string; // 发生日期 YYYY-MM-DD
+  /** 单次改期的起始时刻覆盖 'HH:mm'；缺省继承 chore.startTime */
+  startTime?: string;
+  /** 单次改期的持续分钟覆盖；缺省继承 chore.durationMinutes */
+  durationMinutes?: number;
   completed: boolean;
   completedBy?: string; // 成员 id
   completedAt?: string; // ISO 时间
@@ -63,5 +67,6 @@ export interface ChoreInput {
   recurrence?: RecurrenceRule;
   assigneeIds: string[];
   startDate: string;
-  dueTime?: string; // 'HH:mm'，可选
+  startTime: string; // 'HH:mm'
+  durationMinutes: number; // 分钟
 }

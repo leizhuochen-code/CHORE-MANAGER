@@ -157,6 +157,8 @@ describe('generateInstances / planInstancesForChore', () => {
       recurrence: { freq: 'daily', interval: 1 },
       assigneeIds: [],
       startDate: '2026-08-01',
+      startTime: '09:00',
+      durationMinutes: 30,
       createdAt: '',
     };
     const existing = new Set(['2026-08-01', '2026-08-03']);
@@ -172,6 +174,8 @@ describe('generateInstances / planInstancesForChore', () => {
       isRecurring: false,
       assigneeIds: [],
       startDate: '2026-08-15',
+      startTime: '10:00',
+      durationMinutes: 60,
       createdAt: '',
     };
     const { instances, generatedThrough } = planInstancesForChore(chore, new Set());

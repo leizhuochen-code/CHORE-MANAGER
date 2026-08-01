@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Modal, Form, Input, DatePicker, TimePicker, Switch, Typography, message } from 'antd';
+import { Modal, Form, Input, DatePicker, Typography, message } from 'antd';
 import dayjs from 'dayjs';
 import type { Chore, ChoreInput, RecurrenceRule } from '../types';
 import { useStore } from '../store/useStore';
 import { todayKey } from '../lib/dates';
 import RecurrenceForm from './RecurrenceForm';
 import MemberPicker from './MemberPicker';
+import GuidedTimePicker from './GuidedTimePicker';
+import DurationPicker from './DurationPicker';
 
 const { Text } = Typography;
 
@@ -24,7 +26,8 @@ interface FormValues {
   startDate: dayjs.Dayjs;
   endDate?: dayjs.Dayjs;
   assigneeIds: string[];
-  dueTime?: dayjs.Dayjs;
+  startTime?: string;
+  durationMinutes?: number;
 }
 
 /** 杂务新增/编辑弹窗 */
@@ -36,14 +39,11 @@ export default function ChoreModal({ open, onClose, editing, defaultDate }: Chor
 
   // 重复规则独立于 antd Form 管理（复合受控组件）
   const [recurrence, setRecurrence] = useState<RecurrenceRule | null>(null);
-  // 是否设置具体时间：独立 state 管理，避免依赖 Form 残留值导致新建被校验阻塞
-  const [hasTime, setHasTime] = useState(false);
 
   // 每次打开时重置
   useEffect(() => {
     if (open) {
       setRecurrence(editing?.isRecurring ? (editing.recurrence ?? null) : null);
-      setHasTime(!!editing?.dueTime);
       form.resetFields();
     }
   }, [open, editing, form]);
@@ -57,7 +57,8 @@ export default function ChoreModal({ open, onClose, editing, defaultDate }: Chor
     startDate: dayjs(editing?.startDate ?? defaultDate ?? today),
     endDate: editing?.recurrence?.endDate ? dayjs(editing.recurrence.endDate) : undefined,
     assigneeIds: editing?.assigneeIds ?? [],
-    dueTime: editing?.dueTime ? dayjs(editing.dueTime, 'HH:mm') : undefined,
+    startTime: editing?.startTime ?? '09:00',
+    durationMinutes: editing?.durationMinutes ?? 60,
   };
 
   const handleOk = async () => {
@@ -77,8 +78,6 @@ export default function ChoreModal({ open, onClose, editing, defaultDate }: Chor
       recurrence.endDate = undefined;
     }
 
-    const dueTime = hasTime && values.dueTime ? values.dueTime.format('HH:mm') : undefined;
-
     const input: ChoreInput = {
       title: values.title,
       description: values.description || undefined,
@@ -86,7 +85,8 @@ export default function ChoreModal({ open, onClose, editing, defaultDate }: Chor
       isRecurring,
       recurrence: isRecurring ? { ...recurrence! } : undefined,
       assigneeIds: values.assigneeIds ?? [],
-      dueTime,
+      startTime: values.startTime ?? '09:00',
+      durationMinutes: values.durationMinutes ?? 60,
     };
 
     if (editing) {
@@ -129,25 +129,27 @@ export default function ChoreModal({ open, onClose, editing, defaultDate }: Chor
 
         <Form.Item
           name="startDate"
-          label={isRecurring ? '开始日期（循环基准日）' : '截止日期'}
+          label={isRecurring ? '开始日期（循环基准日）' : '开始日期'}
           rules={[{ required: true, message: '请选择日期' }]}
         >
           <DatePicker style={{ width: '100%' }} />
         </Form.Item>
 
-        <Form.Item label="具体时间">
-          <Switch checked={hasTime} onChange={setHasTime} />
+        <Form.Item
+          name="startTime"
+          label={isRecurring ? '每天重复时刻' : '起始时间'}
+          rules={[{ required: true, message: '请选择起始时间' }]}
+        >
+          <GuidedTimePicker />
         </Form.Item>
 
-        {hasTime && (
-          <Form.Item
-            name="dueTime"
-            label={isRecurring ? '每天重复时刻' : '截止时刻'}
-            rules={[{ required: true, message: '请选择具体时间' }]}
-          >
-            <TimePicker format="HH:mm" style={{ width: '100%' }} />
-          </Form.Item>
-        )}
+        <Form.Item
+          name="durationMinutes"
+          label="持续时间"
+          rules={[{ required: true, message: '请选择持续时间' }]}
+        >
+          <DurationPicker />
+        </Form.Item>
 
         {isRecurring && (
           <Form.Item name="endDate" label="结束日期（可选）">

@@ -33,8 +33,13 @@ export interface StoreState {
   toggleComplete(instanceId: string, completedBy?: string): void;
   /** 只修改完成人，不改变完成状态 */
   setCompleter(instanceId: string, completedBy: string): void;
-  /** 单次改期（仅未完成实例；非循环任务同步 startDate 与 dueTime） */
-  updateInstanceDate(instanceId: string, newDueDate: string, newDueTime?: string): void;
+  /** 单次改期（仅未完成实例；非循环任务同步 startDate/startTime/duration） */
+  updateInstanceDate(
+    instanceId: string,
+    newDueDate: string,
+    newStartTime?: string,
+    newDurationMinutes?: number,
+  ): void;
   /** 删除单次实例（非循环任务的唯一实例由 UI 阻止） */
   deleteInstance(instanceId: string): void;
 
@@ -97,7 +102,8 @@ export const useStore = create<StoreState>()(
             recurrence: input.recurrence,
             assigneeIds: input.assigneeIds,
             startDate: input.startDate,
-            dueTime: input.dueTime,
+            startTime: input.startTime,
+            durationMinutes: input.durationMinutes,
             createdAt: new Date().toISOString(),
           };
           const { instances: gen, generatedThrough } = planInstancesForChore(chore, new Set());
@@ -120,7 +126,8 @@ export const useStore = create<StoreState>()(
             recurrence: patch.recurrence,
             assigneeIds: patch.assigneeIds ?? chore.assigneeIds,
             startDate: patch.startDate ?? chore.startDate,
-            dueTime: patch.dueTime,
+            startTime: patch.startTime ?? chore.startTime,
+            durationMinutes: patch.durationMinutes ?? chore.durationMinutes,
           };
 
           // 是否触及循环本身？
@@ -207,7 +214,7 @@ export const useStore = create<StoreState>()(
           ),
         })),
 
-      updateInstanceDate: (instanceId, newDueDate, newDueTime) =>
+      updateInstanceDate: (instanceId, newDueDate, newStartTime, newDurationMinutes) =>
         set((s) => {
           const inst = s.instances.find((i) => i.id === instanceId);
           if (!inst || inst.completed) return s;
@@ -215,28 +222,55 @@ export const useStore = create<StoreState>()(
 
           // 非循环任务：时间是整任务属性，instance 恒继承（避免双源）
           if (chore && !chore.isRecurring) {
-            if (inst.dueDate === newDueDate && newDueTime === chore.dueTime) return s;
+            const timeChanged =
+              (newStartTime ?? chore.startTime) !== chore.startTime ||
+              (newDurationMinutes ?? chore.durationMinutes) !== chore.durationMinutes;
+            if (inst.dueDate === newDueDate && !timeChanged) return s;
             const next = s.instances.map((i) =>
-              i.id === instanceId ? { ...i, dueDate: newDueDate, dueTime: undefined } : i,
+              i.id === instanceId
+                ? { ...i, dueDate: newDueDate, startTime: undefined, durationMinutes: undefined }
+                : i,
             );
             return {
               instances: next,
               chores: s.chores.map((c) =>
                 c.id === chore.id
-                  ? { ...c, startDate: newDueDate, dueTime: newDueTime, generatedThrough: newDueDate }
+                  ? {
+                      ...c,
+                      startDate: newDueDate,
+                      startTime: newStartTime ?? chore.startTime,
+                      durationMinutes: newDurationMinutes ?? chore.durationMinutes,
+                      generatedThrough: newDueDate,
+                    }
                   : c,
               ),
             };
           }
 
           // 循环任务：单次覆盖；与模板一致或未提供时清空覆盖（回落继承模板）
-          const tpl = chore?.dueTime;
-          const override = newDueTime === undefined || newDueTime === tpl ? undefined : newDueTime;
-          const effectiveNew = override ?? tpl;
-          const effectiveOld = inst.dueTime ?? tpl;
-          if (inst.dueDate === newDueDate && effectiveNew === effectiveOld) return s;
+          const tplTime = chore?.startTime;
+          const tplDuration = chore?.durationMinutes;
+          const overrideTime =
+            newStartTime === undefined || newStartTime === tplTime ? undefined : newStartTime;
+          const overrideDuration =
+            newDurationMinutes === undefined || newDurationMinutes === tplDuration
+              ? undefined
+              : newDurationMinutes;
+          const effNewTime = overrideTime ?? tplTime;
+          const effOldTime = inst.startTime ?? tplTime;
+          const effNewDur = overrideDuration ?? tplDuration;
+          const effOldDur = inst.durationMinutes ?? tplDuration;
+          if (
+            inst.dueDate === newDueDate &&
+            effNewTime === effOldTime &&
+            effNewDur === effOldDur
+          ) {
+            return s;
+          }
           const next = s.instances.map((i) =>
-            i.id === instanceId ? { ...i, dueDate: newDueDate, dueTime: override } : i,
+            i.id === instanceId
+              ? { ...i, dueDate: newDueDate, startTime: overrideTime, durationMinutes: overrideDuration }
+              : i,
           );
           return { instances: next };
         }),
@@ -328,7 +362,7 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'chore-manager:v1',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => localStorage),
       partialize: (s): PersistedState => ({
         members: s.members,
@@ -337,8 +371,20 @@ export const useStore = create<StoreState>()(
         seeded: s.seeded,
       }),
       migrate: (persisted, version) => {
-        if (version === 0) {
-          // v0 -> v1 的迁移预留；当前无历史数据需要处理
+        if (version < 2) {
+          // v1 -> v2：dueTime 改名 startTime，补 durationMinutes（旧数据默认 09:00 / 60 分钟）
+          const p = persisted as PersistedState;
+          return {
+            ...p,
+            chores: p.chores.map((c) => {
+              const { dueTime, ...rest } = c as Chore & { dueTime?: string };
+              return { ...rest, startTime: dueTime ?? '09:00', durationMinutes: 60 };
+            }),
+            instances: p.instances.map((i) => {
+              const { dueTime, ...rest } = i as ChoreInstance & { dueTime?: string };
+              return { ...rest, startTime: dueTime };
+            }),
+          } as PersistedState;
         }
         return persisted as PersistedState;
       },
