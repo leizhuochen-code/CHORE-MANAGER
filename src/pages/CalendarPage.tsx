@@ -21,6 +21,17 @@ interface ModalState {
   defaultDate?: string;
 }
 
+/** 多负责人色带：每位负责人各占一等宽色带；单色/无负责人返回 null（保持纯色） */
+function buildMultiGradient(colors: string[]): string | null {
+  const unique = [...new Set(colors)];
+  if (unique.length < 2) return null;
+  const n = unique.length;
+  const stops = unique
+    .map((c, i) => `${c} ${(i / n) * 100}% ${((i + 1) / n) * 100}%`)
+    .join(', ');
+  return `linear-gradient(90deg, ${stops})`;
+}
+
 /** 日历页：日/周/月三视图 + 点击新建/查看详情 + 自动扩展实例 */
 export default function CalendarPage() {
   const chores = useStore((s) => s.chores);
@@ -45,7 +56,10 @@ export default function CalendarPage() {
     const memberById = new Map(members.map((m) => [m.id, m]));
     return instances.map((i) => {
       const chore = choreById.get(i.choreId);
-      const firstAssignee = chore ? memberById.get(chore.assigneeIds[0] ?? '') : undefined;
+      // 所有负责人的颜色（多负责人时事件渲染为等宽色带，见 buildMultiGradient）
+      const assigneeColors = (chore?.assigneeIds ?? [])
+        .map((id) => memberById.get(id)?.avatarColor)
+        .filter((c): c is string => !!c);
       // 时段块：起始 = 日期+起始时刻，结束 = 起始 + 持续分钟（可跨天）
       const startTime = i.startTime ?? chore?.startTime ?? '09:00';
       const duration = i.durationMinutes ?? chore?.durationMinutes ?? 60;
@@ -58,12 +72,19 @@ export default function CalendarPage() {
         start,
         end,
         allDay: false,
-        backgroundColor: i.completed ? undefined : firstAssignee?.avatarColor,
-        borderColor: i.completed ? undefined : firstAssignee?.avatarColor,
+        backgroundColor: assigneeColors[0],
+        borderColor: assigneeColors[0],
         classNames: i.completed ? ['fc-event-completed'] : [],
+        extendedProps: { assigneeColors },
       };
     });
   }, [instances, chores, members]);
+
+  // 多负责人事件挂载时叠加色带背景；单负责人/无负责人由 backgroundColor 纯色呈现
+  const handleEventDidMount = ({ el, event }: { el: HTMLElement; event: { extendedProps: { assigneeColors?: string[] } } }) => {
+    const gradient = buildMultiGradient(event.extendedProps.assigneeColors ?? []);
+    if (gradient) el.style.backgroundImage = gradient;
+  };
 
   const handleDatesSet = (info: DatesSetInfo) => {
     // 翻到已生成范围之外时自动补生成实例
@@ -93,6 +114,7 @@ export default function CalendarPage() {
         events={events}
         dateClick={handleDateClick}
         eventClick={handleEventClick}
+        eventDidMount={handleEventDidMount}
         datesSet={handleDatesSet}
         dayMaxEvents={3}
         slotDuration="00:10:00"
