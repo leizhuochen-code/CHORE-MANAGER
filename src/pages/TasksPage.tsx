@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Table, Tag, Space, Button, Select, DatePicker, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { CheckOutlined, UndoOutlined, PlusOutlined } from '@ant-design/icons';
+import { CheckOutlined, UndoOutlined, PlusOutlined, EditOutlined } from '@ant-design/icons';
 import { useStore } from '../store/useStore';
 import { describeRule } from '../lib/recurrence';
 import { todayKey, addDaysKey } from '../lib/dates';
@@ -113,18 +113,38 @@ export default function TasksPage() {
     },
     {
       title: '操作',
-      width: 120,
+      width: 210,
       render: (_, r) => (
         <Space>
           <Button
             size="small"
             type={r.inst.completed ? 'default' : 'primary'}
             icon={r.inst.completed ? <UndoOutlined /> : <CheckOutlined />}
-            onClick={() => toggleComplete(r.inst.id, r.chore.assigneeIds[0])}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleComplete(r.inst.id, r.chore.assigneeIds[0]);
+            }}
           >
             {r.inst.completed ? '撤销' : '完成'}
           </Button>
-          <Button size="small" onClick={() => setSelectedInstanceId(r.inst.id)}>
+          <Button
+            size="small"
+            icon={<EditOutlined />}
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditing(r.chore);
+              setEditOpen(true);
+            }}
+          >
+            编辑任务
+          </Button>
+          <Button
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedInstanceId(r.inst.id);
+            }}
+          >
             详情
           </Button>
         </Space>
